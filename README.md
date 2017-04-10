@@ -65,8 +65,10 @@ Notes on SSCC
     Barcode format is CODE128 with FNC1 (a GS1 format)
 
 Notes
+
     Add '-debug' to the command line to see some extra information.
 
 TODO
+
     More validation on user input -- never trust the user! Get list of
     printers from system and let user choose one (or guess on /zebra/i)
