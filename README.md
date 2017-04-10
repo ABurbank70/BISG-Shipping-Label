@@ -2,18 +2,22 @@
 Generate a standard industry shipping label (common carrier, not UPS) for ZPL printer
 
 Name
+
     BISG Common Carrier Shipping label (4x6)
 
 Summary
+
     Create a BISG Common Carrier Shipping Label, sized for a 4x6 thermal
     label, to be sent to a ZPL thermal printer (ie Zebra ZP450). This
     version does not use ZONE G or ZONE H. However, it should be compiant
     for most uses.
 
 Author
+
     Anthony Burbank 2017
 
   Requires
+  
     *    perl-tk Available from CPAN, but it's much easier to install using
          a package manager like "sudo apt-get install perl-tk". If using
          Activestate Perl (on Windows) note that Tkx is installed, but this
@@ -39,6 +43,7 @@ Author
          apt-get install libdbd-sqlite3-perl".
 
 Bugs
+
     The fields on the label are fixed width, so text will either overflow or
     be chopped off (most prominent in SHIP_FROM Zone A) Watch your character
     count! I put in a SLEEP(1) after each label -- it can probably come out
@@ -47,6 +52,7 @@ Bugs
     safe to ignore but I should fix those.
 
 Notes on SSCC
+
     The SSCC barcode in ZONE I is made up of 5 parts. [1] (00) indicates the
     barcode is a SSCC. [2] 0 is for CARTON (change to 1 for PALLET, and
     there's some others too). [3] The next 7 digits are the company code as
@@ -59,8 +65,10 @@ Notes on SSCC
     Barcode format is CODE128 with FNC1 (a GS1 format)
 
 Notes
+
     Add '-debug' to the command line to see some extra information.
 
 TODO
+
     More validation on user input -- never trust the user! Get list of
     printers from system and let user choose one (or guess on /zebra/i)
