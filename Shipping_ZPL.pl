@@ -6,8 +6,9 @@ use Tk;
 use Printer;
 use DBI;
 use Time::Piece;
+use List::Util 'first';
+use subs qw/setup_db done clear is_valid create timestamp get_printer/;
 
-use subs qw/setup_db done clear is_valid create timestamp/;
 
 #*****	Set SHIP FROM here	*********************
 #*****	25 CHAR max or it will spill into SHIP TO
@@ -16,20 +17,21 @@ my $sf_address1  = 'Your Address';
 my $sf_address2  = 'More Address';
 my $sf_csz       = 'City, ST 00000';
 
-#*****	Also set these for your system   ********
-my $zebra_printer = 'Zebra_ZP_450-200dpi';
+#*****	Also set for your system   **************
 my $company_code  = '0000000';
+
+
 
 #*****	 VARS here	*****************************
 our $debug;
 my ($st_name, $st_address1, $st_address2, $st_csz);
 my ($cartons, $purchase_order, $invoice, $message);
 my ($weight,$si_method,$st_san,$conn,$insert_ship_sql);
-my ($update_sscc18_sql,$select_sscc18_sql);
+my ($update_sscc18_sql,$select_sscc18_sql,$match);
 my @methods = qw/BestWay Express Ground Parcel LTL FLT/;
+my @printers;
+my $zebra_printer;
 my $db_name = "shipping.db";
-
-
 
 #*****	Tk Starts HERE   ************************
 $debug and print "Starting program\n";
@@ -49,9 +51,11 @@ my $tf = $window->Frame()->pack(-expand=>1,-fill=>"both");
 #Ship From
 $tf->Label(-text=>"Ship From: ")->grid(-row=>$row,-column=>1);
 my $sf_name_entry = $tf->Entry(-textvariable=>\$sf_name,-bg=>"white",-width=>20,-justify=>"left",-relief=>'flat')->grid(-row=>$row,-column=>2,-columnspan=>3,-sticky=>"nw");
+
 ++$row;
 $tf->Label(-text=>"Ship From Address: ")->grid(-row=>$row,-column=>1);
 my $sf_address1_entry = $tf->Entry(-textvariable=>\$sf_address1,-bg=>"white",-width=>20,-justify=>"left",-relief=>'flat')->grid(-row=>$row,-column=>2,-columnspan=>3,-sticky=>"nw");
+
 ++$row;
 $tf->Label(-text=>"Ship From Address: ")->grid(-row=>$row,-column=>1);
 my $sf_address2_entry = $tf->Entry(-textvariable=>\$sf_address2,-bg=>"white",-width=>20,-justify=>"left",-relief=>'flat')->grid(-row=>$row,-column=>2,-columnspan=>3,-sticky=>"nw");
@@ -96,7 +100,15 @@ my $si_method_entry = $tf->Optionmenu(
 ++$row;
 $tf->Label(-text=>"Dest SAN/ZIP: ")->grid(-row=>$row,-column=>1);
 my $st_san_entry = $tf->Entry(-textvariable=>\$st_san,-font=>'normal', -bg=>'white',-width=>20,-justify=>'left')->grid(-row=>$row,-column=>2,-columnspan=>3,-sticky=>'nw');
+++$row;
 
+#*****	Select/Set printer here   ***************
+get_printer;
+$tf->Label(-text=>"Printer: ")->grid(-row=>$row,-column=>1,-columnspan=>4);
+++$row;
+my $default_printer_entry = $tf->Optionmenu (
+  -options=>[@printers],
+  -variable=>\$zebra_printer)->grid(-row=>$row,-column=>1,-columnspan=>4);
 
 #*****	Bottom Frame  ***************************
 my $bf = $window->Frame()->pack(-expand=>1,-fill=>"both");
@@ -113,6 +125,10 @@ $window->Label(-textvariable=>\$message, -borderwidth=>2, -relief=>'groove')->pa
 
 $st_name_entry->focus();
 $cartons_entry->insert(0,'1');
+if ($match) {
+ $zebra_printer = $match;
+ $debug and print "Trying to set default printer to $match\n";
+}
 $debug and print "Finished drawing screen\n";
 setup_db();
 $message = "Ready to start!";
@@ -171,6 +187,20 @@ sub is_valid() {
   $_[1] =~ /[\d]/;
 }
 
+#*****	Find the printers on the system (zebra!)*
+# This code is LINUX only, breaks cross-platform usage
+sub get_printer {
+  my $results = `lpstat -a`;
+  my @lines = split(/\n/,$results);
+  foreach my $l (@lines) {
+    if ($l =~ /^(.+?)\s/m) {
+    push @printers, $1;
+    }
+  }
+  $match = first { /zebra/i } @printers;
+  $debug and print "Found possible ZPL printer as '$match'\n";
+}
+
 #*****	Make label!   ***************************
 sub create {
  # TODO check for data "uninitialized value" error
@@ -184,7 +214,7 @@ sub create {
    $b = sprintf("%09d",$barcode[0]);
    $debug and print "Using SSCC18 $b\n";
    $update_sscc18_sql->execute($barcode[0]+1);
-   my $label    = "^XA\n";
+   my $label = "^XA\n";
    $label .= "^POI\n";
 
    #Zone A
@@ -345,11 +375,23 @@ B<Printer> from CPAN, used to talk directly to the printer.  It calls 'lpr' -- d
 
 =item *
 
-B<a Zebra Printer> This label is written in ZPL, the Zebra thermal printer langauge.  If you try to send it to any other kind of printer you'll get interesting results.  The printer should be installed on the local system as a RAW device (or generic).  You need to change B<$zebra_printer> variable to match the actual name of the printer on your system.  Unless I added the part that lets you choose a printer...
+B<a Zebra Printer> This label is written in ZPL, the Zebra thermal printer langauge.  If you try to send it to any other kind of printer you'll get interesting results.  The printer should be installed on the local system as a RAW device (or generic).  The program will try to guess the right printer, but may guess wrong.
 
 =item *
 
-B<DBI> and the SQLite dbd -- Install using a package manager C<sudo apt-get install libdbd-sqlite3-perl>.
+B<DBI> and the SQLite dbd -- Install using a package manager C<sudo apt-get install libdbd-sqlite3-perl>
+
+=item *
+
+B<Time::Piece> to set the better version of 'localtime' and get a properly formated date for the database
+
+=item *
+
+B<List::Util 'first'> is used to try and pick the Zebra printer out of the available printers on the (linux) system.
+
+=item *
+
+B<lpstat -a> to find the availabe printers on the system.  THIS BREAKS CROSS-PLATFORM compatiblity!  It should still work on OSX (untested) but is now aimed mostly at Linux boxes.  Supposedly, the B<Printer> module can do this but I looked at the code and it's got hard-coded paths in it that don't work on my system.  So...
 
 =back
 
@@ -367,9 +409,10 @@ Add '-debug' to the command line to see some extra information.
 
 =head1 TODO
 
-More validation on user input -- never trust the user!  Get list of printers from system and let user choose one (or guess on /zebra/i)
+More validation on user input -- never trust the user!  Make this work on WIN32 again?  Anyone.... anyone...
 
 =cut
+
 
 
 
