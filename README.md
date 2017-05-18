@@ -70,5 +70,4 @@ Notes
 
 TODO
 
-    More validation on user input -- never trust the user! Get list of
-    printers from system and let user choose one (or guess on /zebra/i)
+    More validation on user input -- never trust the user! Make cross-platform again
