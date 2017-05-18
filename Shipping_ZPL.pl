@@ -254,10 +254,12 @@ sub create {
    #Zone C
    #Postal (420)
    #(2.5")
+   if ($st_san) {
    $label .= "^BY2\n";
    $label .= "^FO80,250\n";
    $label .= "^BCN,100,Y,N,,D\n";
    $label .= "^FD(420) ${st_san}^FS";
+   }
    $debug and print " C ";
 
    #Zone D
@@ -281,9 +283,11 @@ sub create {
    $label .= "^CF0,35\n";
    $label .= "^FO30,460\n";
    $label .= "^FDPO Number:^FS\n";
+   if ($purchase_order) {
    $label .= "^FO250,450\n";
    $label .= "^BCN,100,Y,N,,D\n";
    $label .= "^FD(400) ${purchase_order}^FS";
+   }
    $debug and print " E ";
 
    #Line
