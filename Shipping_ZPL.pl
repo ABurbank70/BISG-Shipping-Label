@@ -197,7 +197,7 @@ sub get_printer {
     push @printers, $1;
     }
   }
-  $match = first { /zebra|ZTC-ZP/i } @printers;
+  $match = first { /zebra/i } @printers;
   $debug and print "Found possible ZPL printer as '$match'\n";
 }
 
@@ -208,7 +208,7 @@ sub create {
  my $i = 1;
  my $b;
  return unless ($cartons > 0);
-
+ while ($i <= $cartons) {
    $select_sscc18_sql->execute();
    my @barcode = $select_sscc18_sql->fetchrow_array();
    $b = sprintf("%09d",$barcode[0]);
@@ -259,8 +259,8 @@ sub create {
    $label .= "^FO80,250\n";
    $label .= "^BCN,100,Y,N,,D\n";
    $label .= "^FD(420) ${st_san}^FS";
-   $debug and print " C ";
    }
+   $debug and print " C ";
 
    #Zone D
    #Carrier/Service
@@ -310,10 +310,8 @@ sub create {
    $label .= "^CF0,50\n";
    $label .= "^FO30,750\n";
    $label .= "^FDCarton #:^FS\n";
-   $label .= "^FO340,750\n";
-   $label .= "^FD01^SFdd^FS\n";
-   $label .= "^FO400,750\n";
-   $label .= "^FDof ${cartons}^FS\n";
+   $label .= "^FO350,750\n";
+   $label .= "^FD${i} of ${cartons}^FS\n";
    $debug and print " F ";
 
    #Line
@@ -330,18 +328,20 @@ sub create {
    $label .= "^BY4\n";
    $label .= "^FO100,890\n";
    $label .= "^BCN,256,Y,N,,D\n";
-   $label .= "^FD(00) 0${company_code}${b}0^FS\n";
+   $label .= "^FD(00)0${company_code}${b}0^FS\n";
    $debug and print " I\n";
 
-   $label .= "^PQ${cartons}\n";
    $label .= "^XZ\n";
 
    # Print directly to thermal printer
    # TODO Set a WIN32 Printer for cross-platform support
-   #my $printer = new Printer ('linux' => "lpr -P $zebra_printer"); # lpr -P is redundant now?
-   my $printer = new Printer ('linux' => "$zebra_printer");
+   my $printer = new Printer ('linux' => "lpr -P $zebra_printer");
    $printer->print($label);
    $debug and print "Sent label $i to the printer\n";
+   $message = "Printing label $i";
+   ++$i;
+   sleep(1);		#NOP to keep printer from overloading?
+ }
  $insert_ship_sql->execute($st_name,$st_address1,$st_address2,$st_csz,$purchase_order,$invoice,$cartons,$company_code . $b,$weight,$si_method,$st_san,&timestamp);
  $debug and print "Added shipment to database $db_name\n";
 }
@@ -401,7 +401,7 @@ B<lpstat -a> to find the availabe printers on the system.  THIS BREAKS CROSS-PLA
 
 =head1 Bugs
 
-The fields on the label are fixed width, so text will either overflow or be chopped off (most prominent in SHIP_FROM Zone A)  Watch your character count!  Missing fields can cause warnings about uninitialized values, safe to ignore but I should fix those.
+The fields on the label are fixed width, so text will either overflow or be chopped off (most prominent in SHIP_FROM Zone A)  Watch your character count!  I put in a SLEEP(1) after each label -- it can probably come out but I was afraid of dumping to much to the spooler at once and losing a label.  Missing fields can cause warnings about uninitialized values, safe to ignore but I should fix those.
 
 =head1 Notes on SSCC
 
@@ -416,3 +416,8 @@ Add '-debug' to the command line to see some extra information.
 More validation on user input -- never trust the user!  Make this work on WIN32 again?  Anyone.... anyone...
 
 =cut
+
+
+
+
+
