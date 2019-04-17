@@ -46,9 +46,7 @@ Bugs
 
     The fields on the label are fixed width, so text will either overflow or
     be chopped off (most prominent in SHIP_FROM Zone A) Watch your character
-    count! I put in a SLEEP(1) after each label -- it can probably come out
-    but I was afraid of dumping to much to the spooler at once and losing a
-    label. Missing fields can cause warnings about uninitialized values,
+    count! Missing fields can cause warnings about uninitialized values,
     safe to ignore but I should fix those.
 
 Notes on SSCC
